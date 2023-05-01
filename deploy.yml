@@ -1,0 +1,9 @@
+---
+- name: Collect customer information
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: Print an echo statement
+      debug:
+        msg: "Hello FWS"
