@@ -7,16 +7,16 @@ global:
 {% if 'edge' in products %}
     edge:
       tshirtSize: pond
-      ingressName: hivemapper.edge.estuary.tech
+      ingressName: {{ customer_name }}.edge.estuary.tech
       image: zorlin/edge-ur:hivemapper
 {% endif %}
 {% if 'delta' in products %}
     delta:
       tshirtSize: heavy
-      ingressName: hivemapper.delta.estuary.tech
+      ingressName: {{ customer_name }}.delta.estuary.tech
     delta_registry:
       tshirtSize: basic
-      ingressName: hivemapper.registry.estuary.tech
+      ingressName: {{ customer_name }}.registry.estuary.tech
 {% endif %}
     postgres:
       - name: dbfws
