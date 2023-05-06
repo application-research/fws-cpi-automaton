@@ -3,17 +3,6 @@
   hosts: automaton
   become: false
 
-  vars:
-    products: ['edge', 'delta']
-    customer_name: "m3"
-    customer_walletaddress: 'f14wtf7z3k3rx4wtb5s24lwafxkfyuyeewyybz7vi'
-    customer_walletname: 'O5QWY3DFOQWWMMJUO52GMN32GNVTG4TYGR3XIYRVOMZDI3DXMFTHQ23GPF2XSZLFO54XSYT2G53GS'
-    edge_tshirtsize: 'pond'
-    delta_tshirtsize: 'basic'
-    postgres_cluster_name: 'wingscluster'
-    postgres_tshirtsize: 'marbles'
-    gitea_api: 'https://git.estuary.tech'
-
   tasks:
     - name: Check necessary assertions
       ansible.builtin.assert:
