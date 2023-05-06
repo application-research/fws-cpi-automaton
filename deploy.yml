@@ -212,6 +212,13 @@
       delegate_to: localhost
       connection: local
 
+    - name: Run Helm dependency update to ensure we have a working lockfile # noqa no-changed-when
+      ansible.builtin.command:
+        cmd: helm dependency update
+        chdir: "/tmp/fws-customers/{{ customer_name }}/kubernetes"
+      delegate_to: localhost
+      connection: local
+
     - name: Set Git name and email address # noqa no-changed-when
       ansible.builtin.command:
         cmd: "{{ item }}"
