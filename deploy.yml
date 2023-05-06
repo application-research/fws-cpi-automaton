@@ -1,9 +1,219 @@
 ---
 - name: Collect customer information
-  hosts: localhost
-  become: true
+  hosts: automaton
+  become: false
+
+  vars:
+    products: ['edge', 'delta', 'postgres']
+    customer_name: "testcake"
+    customer_walletaddress: 'f14wtf7z3k3rx4wtb5s24lwafxkfyuyeewyybz7vi'
+    customer_walletname: 'O5QWY3DFOQWWMMJUO52GMN32GNVTG4TYGR3XIYRVOMZDI3DXMFTHQ23GPF2XSZLFO54XSYT2G53GS'
+    edge_tshirtsize: 'pond'
+    delta_tshirtsize: 'basic'
+    postgres_cluster_name: 'cakecluster'
+    postgres_tshirtsize: 'marbles'
+    gitea_api: 'https://git.estuary.tech'
 
   tasks:
-    - name: Print an echo statement
-      debug:
-        msg: "Hello FWS"
+    - name: Check necessary assertions
+      ansible.builtin.assert:
+        that:
+          - products is defined and products is iterable
+          - products|length > 0
+          - customer_name is defined
+          - customer_name is string
+          - customer_walletaddress is defined
+          - customer_walletaddress is string
+          - customer_walletname is defined
+          - customer_walletname is string
+          - gitea_username is defined
+          - gitea_username is string
+          - gitea_apikey is defined
+        fail_msg: "At least one assertion failed"
+        success_msg: "All assertions passed"
+
+    - name: Ensure customer repository exists
+      block:
+        - name: Check if repository exists
+          ansible.builtin.uri:
+            url: "{{ gitea_api }}/api/v1/repos/fws-customers/{{ customer_name }}"
+            method: GET
+            return_content: false
+            headers:
+              Authorization: "token {{ gitea_apikey }}"
+          register: repo_exists
+          failed_when: false
+          changed_when: false
+
+        # Create the repository if it doesn't exist
+        - name: Create the customer repository using a POST request
+          ansible.builtin.uri:
+            url: "{{ gitea_api }}/api/v1/orgs/fws-customers/repos"
+            method: POST
+            body_format: json
+            status_code: 201
+            body:
+              name: "{{ customer_name }}"
+              description: "Customer repository for {{ customer_name }}"
+              private: true
+              auto_init: true
+              readme: "Default"
+              default_branch: "main"
+            headers:
+              Authorization: "token {{ gitea_apikey }}"
+            return_content: false
+          when: repo_exists.status == 404
+          register: repo_created
+
+        # If the repository already exists, we don't need to do anything
+        - name: Set repo_created to false
+          ansible.builtin.set_fact:
+            repo_created: false
+          when: repo_exists.status != 404
+
+    # Load the customer management SSH key
+    - name: Create temporary private key file
+      ansible.builtin.copy:
+        content: "{{ customer_management_key | b64decode }}"
+        dest: "/tmp/customer-management-key"
+        mode: "0600"
+      register: temp_key_file
+      delegate_to: localhost
+      connection: local
+
+    - name: Ensure ~/.ssh exists
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'HOME') }}/.ssh"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      connection: local
+
+    - name: Add Gitea public keys # noqa: line_length
+      # TODO(cleanup): Move this to public group_vars/all
+      ansible.builtin.known_hosts:
+        name: git.estuary.tech
+        key: "git.estuary.tech {{ item }}"
+        state: present
+      loop:
+        - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMywISWhPHJebFhgmtY79CNjnww0ZWuDQklp0BRqP5I/"
+        - "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBBqpzL33OcP2Bktj2VPT4WVErXGKDl/YAp9InmQrWCBl4qmP7hAN+bzXBdiJjwDOw8UPxe++6GagUznyGVfpULw="
+        - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCeV1VL0s3vEAF3xLO12FRJoH6J9S9kiBroNFkbxh7tFJh09QyqVxD6MwMhFYYmfnror3jquMMWWU8KbY5SxPoWkgvF7USenwWhzxVE5XRFBub20EmZsQmkVc88nHeawR0PRGQIbbpEU5jRxtjz5jCYPB/xqqnHNi8Dm9HA2G8AcCotpawrepYBMQwrM+mz75XXsul2OM+Asjll84MDudfVT679v2J8OUeJBGj8yFzyx6wbRWf3w9KdDGLLyp2vy27H4A41Q6BE9tMFCy3IqJqpSw3tCYKmsb5zCZ1vuLKT6brqGnMEyvBFMoplEacFZe3kOYCvfGttkV9JyfWtT7+ymlmr3F5rsDNXCfEseBy3ZFbWMPZJz98SrGh6j9M3/94j5KTwdUGp7+v5x04IWyrvcEUQPPDI+SA8wHcYQaoS+JKvLqO7ZvZttuYuxs+QOgUGmb4Wp6QaKnAShp39SSzdAZG79Qr7I1hX5O0Eapjmhi7OEbZEA36bSDnH/vCcuT0="
+      delegate_to: localhost
+      connection: local
+
+    - name: Create temporary folder to hold customers
+      ansible.builtin.file:
+        path: "/tmp/fws-customers"
+        state: directory
+        mode: '0700'
+
+    - name: Check out customer repository # noqa: latest
+      ansible.builtin.git:
+        repo: "gitea@git.estuary.tech:fws-customers/{{ customer_name }}.git"
+        dest: "/tmp/fws-customers/{{ customer_name }}"
+
+    - name: Create kubernetes folder within customer repository
+      ansible.builtin.file:
+        path: "/tmp/fws-customers/{{ customer_name }}/kubernetes"
+        state: directory
+        mode: '0700'
+
+    - name: Create Helm values for customer
+      ansible.builtin.template:
+        src: "templates/values.yaml.j2"
+        dest: "/tmp/fws-customers/{{ customer_name }}/kubernetes/values.yaml"
+        mode: '0600'
+      delegate_to: localhost
+      connection: local
+
+    - name: Check if Helm chart exists for customer
+      ansible.builtin.stat:
+        path: "/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml"
+      register: chart_exists
+      delegate_to: localhost
+      connection: local
+
+    - name: If Helm chart exists, load main version string
+      ansible.builtin.set_fact:
+        chart_version: "{{ (lookup('file', '/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml') | from_yaml).version }}"
+      when: chart_exists.stat.exists
+
+    - name: If Helm chart exists, load subchart version strings
+      block:
+        - name: Parse Chart.yaml content
+          ansible.builtin.set_fact:
+            chart_data: "{{ lookup('file', '/tmp/fws-customers/' + customer_name + '/kubernetes/Chart.yaml') | from_yaml }}"
+
+        - name: Create a dictionary of dependency versions
+          ansible.builtin.set_fact:
+            dependency_versions: "{{ dependency_versions | default({}) | combine({(item.name | replace('-', '_')): item.version}) }}"
+          loop: "{{ chart_data.dependencies }}"
+
+        - name: Display the dependency versions
+          ansible.builtin.debug:
+            var: dependency_versions
+
+    - name: If Helm chart is being created for the first time, set version to 0.1.0
+      ansible.builtin.set_fact:
+        chart_version: "0.1.0"
+      when: not chart_exists.stat.exists
+
+    - name: If we are updating the Helm charts, fetch the latest versions from the Helm repository
+      when: (update_helm_charts | default(false))
+      block:
+        - name: Fetch Helm repo data from URL
+          ansible.builtin.uri:
+            url: https://application-research.github.io/fws-cpi-helm/index.yaml
+            return_content: true
+          register: helm_repo_response
+
+        - name: Parse Helm repo content
+          ansible.builtin.set_fact:
+            helm_repo_data: "{{ helm_repo_response.content | from_yaml }}"
+
+        - name: Create a dictionary to hold dependency_versions
+          ansible.builtin.set_fact:
+            dependency_versions: "{{ dependency_versions | default({}) }}"
+
+        - name: Find the latest available version of Delta
+          ansible.builtin.set_fact:
+            dependency_versions.cpi_delta: "{{ (helm_repo_data.entries['cpi-delta'] | sort(attribute='version', reverse=true) | first).version }}"
+          when: "'cpi-delta' in helm_repo_data.entries"
+
+        - name: Find the latest available version of Delta Registry
+          ansible.builtin.set_fact:
+            delta_registry_version: "{{ (helm_repo_data.entries['cpi-delta-registry'] | sort(attribute='version', reverse=true) | first).version }}"
+          when: "'cpi-delta-registry' in helm_repo_data.entries"
+
+        - name: Find the latest available version of Edge
+          ansible.builtin.set_fact:
+            edge_version: "{{ (helm_repo_data.entries['cpi-edge'] | sort(attribute='version', reverse=true) | first).version }}"
+          when: "'cpi-edge' in helm_repo_data.entries"
+
+        - name: Find the latest available version of PostgreSQL
+          ansible.builtin.set_fact:
+            postgresql_version: "{{ (helm_repo_data.entries['cpi-postgresql'] | sort(attribute='version', reverse=true) | first).version }}"
+          when: "'cpi-postgresql' in helm_repo_data.entries"
+
+    - name: Create Helm chart definition for customer
+      ansible.builtin.template:
+        src: "templates/Chart.yaml.j2"
+        dest: "/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml"
+        mode: '0600'
+      register: chart_changed
+      delegate_to: localhost
+      connection: local
+
+    - name: If Helm chart changed and this is not a new chart, increment version
+      ansible.builtin.set_fact:
+        chart_version: "{{ chart_version.split('.')[0] }}.{{ chart_version.split('.')[1] }}.{{ (chart_version.split('.')[2] | int) + 1 }}"
+      when: chart_changed.changed and chart_exists.stat.exists
+
+    - name: Re-apply Helm chart definition for customer
+      ansible.builtin.template:
+        src: "templates/Chart.yaml.j2"
+        dest: "/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml"
+        mode: '0600'
+      delegate_to: localhost
+      connection: local

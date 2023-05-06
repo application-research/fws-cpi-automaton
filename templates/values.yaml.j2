@@ -1,0 +1,27 @@
+global:
+  customer:
+    name: {{ customer_name }}
+    walletAddress: {{ customer_walletaddress }}
+    walletName: {{ customer_walletname }}
+  products:
+    { % if 'edge' in products %}
+    edge:
+      tshirtSize: pond
+      ingressName: hivemapper.edge.estuary.tech
+      image: zorlin/edge-ur:hivemapper
+    { % endif %}
+    { % if 'delta' in products %}
+    delta:
+      tshirtSize: heavy
+      ingressName: hivemapper.delta.estuary.tech
+    delta_registry:
+      tshirtSize: basic
+      ingressName: hivemapper.registry.estuary.tech
+    { % endif %}
+    postgres:
+      - name: dbfws
+        tshirtSize: marbles
+      { % if 'postgres' in products %}
+      - name: {{ postgres_cluster_name }}
+        tshirtSize: {{ postgres_tshirtsize }}
+      { % endif %}

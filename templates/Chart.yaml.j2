@@ -1,0 +1,20 @@
+apiVersion: v2
+name: customer-{{ customer_name }}
+description: {{ customer_name }}'s epic adventure with FWS.
+type: application
+version: {{ chart_version }}
+appVersion: 1.0.0
+
+dependencies:
+- name: cpi-edge
+  version: 0.5.0
+  repository: "https://application-research.github.io/fws-cpi-helm"
+- name: cpi-delta
+  version: 0.5.5
+  repository: "https://application-research.github.io/fws-cpi-helm"
+- name: cpi-delta-registry
+  version: 0.1.7
+  repository: "https://application-research.github.io/fws-cpi-helm"
+- name: cpi-postgresql
+  version: 0.2.2
+  repository: "https://application-research.github.io/fws-cpi-helm"
