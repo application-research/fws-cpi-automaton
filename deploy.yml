@@ -26,8 +26,6 @@
           - customer_walletaddress is string
           - customer_walletname is defined
           - customer_walletname is string
-          - gitea_username is defined
-          - gitea_username is string
           - gitea_apikey is defined
         fail_msg: "At least one assertion failed"
         success_msg: "All assertions passed"
