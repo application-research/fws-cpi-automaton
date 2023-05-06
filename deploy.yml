@@ -98,6 +98,7 @@
       ansible.builtin.git:
         repo: "gitea@git.estuary.tech:fws-customers/customer-{{ customer_name }}.git"
         dest: "/tmp/fws-customers/customer-{{ customer_name }}"
+        key_file: "/tmp/customer-management-key"
 
     - name: Create kubernetes folder within customer repository
       ansible.builtin.file:
