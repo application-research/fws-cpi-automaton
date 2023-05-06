@@ -138,6 +138,7 @@
       when: chart_exists.stat.exists
 
     - name: If Helm chart exists, load subchart version strings
+      when: chart_exists.stat.exists
       block:
         - name: Parse Chart.yaml content
           ansible.builtin.set_fact:
