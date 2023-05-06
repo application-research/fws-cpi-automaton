@@ -145,14 +145,18 @@
           ansible.builtin.set_fact:
             chart_data: "{{ lookup('file', '/tmp/fws-customers/' + customer_name + '/kubernetes/Chart.yaml') | from_yaml }}"
 
-        - name: Create a dictionary of dependency versions
+        - name: Create separate variables for each dependency version
           ansible.builtin.set_fact:
-            dependency_versions: "{{ dependency_versions | default({}) | combine({(item.name | replace('-', '_')): item.version}) }}"
+            "{{ item.name | replace('-', '_') }}_version": "{{ item.version }}"
           loop: "{{ chart_data.dependencies }}"
 
-        - name: Display the dependency versions
-          ansible.builtin.debug:
-            var: dependency_versions
+        # - name: Display the dependency versions
+        #   ansible.builtin.debug:
+        #     msg:
+        #       - "{{ cpi_delta_version }}"
+        #       - "{{ cpi_edge_version }}"
+        #       - "{{ cpi_delta_registry_version }}"
+        #       - "{{ cpi_postgresql_version }}"
 
     - name: If Helm chart is being created for the first time, set version to 0.1.0
       ansible.builtin.set_fact:
@@ -172,29 +176,20 @@
           ansible.builtin.set_fact:
             helm_repo_data: "{{ helm_repo_response.content | from_yaml }}"
 
-        - name: Create a dictionary to hold dependency_versions
+        - name: Find the latest available versions
           ansible.builtin.set_fact:
-            dependency_versions: "{{ dependency_versions | default({}) }}"
+            cpi_delta_version: "{{ (helm_repo_data.entries['cpi-delta'] | sort(attribute='version', reverse=true) | first).version }}"
+            cpi_delta_registry_version: "{{ (helm_repo_data.entries['cpi-delta-registry'] | sort(attribute='version', reverse=true) | first).version }}"
+            cpi_edge_version: "{{ (helm_repo_data.entries['cpi-edge'] | sort(attribute='version', reverse=true) | first).version }}"
+            cpi_postgresql_version: "{{ (helm_repo_data.entries['cpi-postgresql'] | sort(attribute='version', reverse=true) | first).version }}"
 
-        - name: Find the latest available version of Delta
-          ansible.builtin.set_fact:
-            dependency_versions.cpi_delta: "{{ (helm_repo_data.entries['cpi-delta'] | sort(attribute='version', reverse=true) | first).version }}"
-          when: "'cpi-delta' in helm_repo_data.entries"
-
-        - name: Find the latest available version of Delta Registry
-          ansible.builtin.set_fact:
-            delta_registry_version: "{{ (helm_repo_data.entries['cpi-delta-registry'] | sort(attribute='version', reverse=true) | first).version }}"
-          when: "'cpi-delta-registry' in helm_repo_data.entries"
-
-        - name: Find the latest available version of Edge
-          ansible.builtin.set_fact:
-            edge_version: "{{ (helm_repo_data.entries['cpi-edge'] | sort(attribute='version', reverse=true) | first).version }}"
-          when: "'cpi-edge' in helm_repo_data.entries"
-
-        - name: Find the latest available version of PostgreSQL
-          ansible.builtin.set_fact:
-            postgresql_version: "{{ (helm_repo_data.entries['cpi-postgresql'] | sort(attribute='version', reverse=true) | first).version }}"
-          when: "'cpi-postgresql' in helm_repo_data.entries"
+        # - name: Display the dependency versions
+        #   ansible.builtin.debug:
+        #     msg:
+        #       - "{{ cpi_delta_version }}"
+        #       - "{{ cpi_edge_version }}"
+        #       - "{{ cpi_delta_registry_version }}"
+        #       - "{{ cpi_postgresql_version }}"
 
     - name: Create Helm chart definition for customer
       ansible.builtin.template:
@@ -215,5 +210,32 @@
         src: "templates/Chart.yaml.j2"
         dest: "/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml"
         mode: '0600'
+      delegate_to: localhost
+      connection: local
+
+    - name: Set Git name and email address # noqa no-changed-when
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+        chdir: "{{ lookup('env', 'HOME') }}/wildcard-tls-materials"
+      loop:
+        - git config user.name "{{ customer_management_git_username }}"
+        - git config user.email "{{ customer_management_git_email }}"
+      delegate_to: localhost
+      connection: local
+
+    - name: Add all files to Git repository for customer # noqa no-changed-when
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+        chdir: "/tmp/fws-customers/{{ customer_name }}"
+      loop:
+        - git add .
+        - git commit -m "Updated Helm chart - version {{ chart_version }} via Ansible"
+      delegate_to: localhost
+      connection: local
+
+    - name: Push changes to Git repository for customer # noqa no-changed-when command-instead-of-shell
+      ansible.builtin.shell:
+        cmd: 'GIT_SSH_COMMAND="ssh -i /tmp/customer-management-key -o IdentitiesOnly=yes" git push'
+        chdir: "/tmp/fws-customers/{{ customer_name }}"
       delegate_to: localhost
       connection: local
