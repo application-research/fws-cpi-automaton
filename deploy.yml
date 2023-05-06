@@ -34,7 +34,7 @@
       block:
         - name: Check if repository exists
           ansible.builtin.uri:
-            url: "{{ gitea_api }}/api/v1/repos/fws-customers/{{ customer_name }}"
+            url: "{{ gitea_api }}/api/v1/repos/fws-customers/customer-{{ customer_name }}"
             method: GET
             return_content: false
             headers:
@@ -51,7 +51,7 @@
             body_format: json
             status_code: 201
             body:
-              name: "{{ customer_name }}"
+              name: "customer-{{ customer_name }}"
               description: "Customer repository for {{ customer_name }}"
               private: true
               auto_init: true
@@ -108,33 +108,33 @@
 
     - name: Check out customer repository # noqa: latest
       ansible.builtin.git:
-        repo: "gitea@git.estuary.tech:fws-customers/{{ customer_name }}.git"
-        dest: "/tmp/fws-customers/{{ customer_name }}"
+        repo: "gitea@git.estuary.tech:fws-customers/customer-{{ customer_name }}.git"
+        dest: "/tmp/fws-customers/customer-{{ customer_name }}"
 
     - name: Create kubernetes folder within customer repository
       ansible.builtin.file:
-        path: "/tmp/fws-customers/{{ customer_name }}/kubernetes"
+        path: "/tmp/fws-customers/customer-{{ customer_name }}/kubernetes"
         state: directory
         mode: '0700'
 
     - name: Create Helm values for customer
       ansible.builtin.template:
         src: "templates/values.yaml.j2"
-        dest: "/tmp/fws-customers/{{ customer_name }}/kubernetes/values.yaml"
+        dest: "/tmp/fws-customers/customer-{{ customer_name }}/kubernetes/values.yaml"
         mode: '0600'
       delegate_to: localhost
       connection: local
 
     - name: Check if Helm chart exists for customer
       ansible.builtin.stat:
-        path: "/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml"
+        path: "/tmp/fws-customers/customer-{{ customer_name }}/kubernetes/Chart.yaml"
       register: chart_exists
       delegate_to: localhost
       connection: local
 
     - name: If Helm chart exists, load main version string
       ansible.builtin.set_fact:
-        chart_version: "{{ (lookup('file', '/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml') | from_yaml).version }}"
+        chart_version: "{{ (lookup('file', '/tmp/fws-customers/customer-{{ customer_name }}/kubernetes/Chart.yaml') | from_yaml).version }}"
       when: chart_exists.stat.exists
 
     - name: If Helm chart exists, load subchart version strings
@@ -142,7 +142,7 @@
       block:
         - name: Parse Chart.yaml content
           ansible.builtin.set_fact:
-            chart_data: "{{ lookup('file', '/tmp/fws-customers/' + customer_name + '/kubernetes/Chart.yaml') | from_yaml }}"
+            chart_data: "{{ lookup('file', '/tmp/fws-customers/customer-' + customer_name + '/kubernetes/Chart.yaml') | from_yaml }}"
 
         - name: Create separate variables for each dependency version
           ansible.builtin.set_fact:
@@ -193,7 +193,7 @@
     - name: Create Helm chart definition for customer
       ansible.builtin.template:
         src: "templates/Chart.yaml.j2"
-        dest: "/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml"
+        dest: "/tmp/fws-customers/customer-{{ customer_name }}/kubernetes/Chart.yaml"
         mode: '0600'
       register: chart_changed
       delegate_to: localhost
@@ -207,7 +207,7 @@
     - name: Re-apply Helm chart definition for customer
       ansible.builtin.template:
         src: "templates/Chart.yaml.j2"
-        dest: "/tmp/fws-customers/{{ customer_name }}/kubernetes/Chart.yaml"
+        dest: "/tmp/fws-customers/customer-{{ customer_name }}/kubernetes/Chart.yaml"
         mode: '0600'
       delegate_to: localhost
       connection: local
@@ -215,7 +215,7 @@
     - name: Run Helm dependency update to ensure we have a working lockfile # noqa no-changed-when
       ansible.builtin.command:
         cmd: helm dependency update
-        chdir: "/tmp/fws-customers/{{ customer_name }}/kubernetes"
+        chdir: "/tmp/fws-customers/customer-{{ customer_name }}/kubernetes"
       delegate_to: localhost
       connection: local
 
@@ -232,7 +232,7 @@
     - name: Add all files to Git repository for customer # noqa no-changed-when
       ansible.builtin.command:
         cmd: "{{ item }}"
-        chdir: "/tmp/fws-customers/{{ customer_name }}"
+        chdir: "/tmp/fws-customers/customer-{{ customer_name }}"
       loop:
         - git add .
         - git commit -m "Updated Helm chart - version {{ chart_version }} via Ansible"
@@ -242,6 +242,6 @@
     - name: Push changes to Git repository for customer # noqa no-changed-when command-instead-of-shell
       ansible.builtin.shell:
         cmd: 'GIT_SSH_COMMAND="ssh -i /tmp/customer-management-key -o IdentitiesOnly=yes" git push'
-        chdir: "/tmp/fws-customers/{{ customer_name }}"
+        chdir: "/tmp/fws-customers/customer-{{ customer_name }}"
       delegate_to: localhost
       connection: local
