@@ -213,7 +213,7 @@
     - name: Set Git name and email address # noqa no-changed-when
       ansible.builtin.command:
         cmd: "{{ item }}"
-        chdir: "{{ lookup('env', 'HOME') }}/wildcard-tls-materials"
+        chdir: "/tmp/fws-customers/customer-{{ customer_name }}"
       loop:
         - git config user.name "{{ customer_management_git_username }}"
         - git config user.email "{{ customer_management_git_email }}"
