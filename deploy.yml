@@ -1,7 +1,6 @@
 ---
 - name: Collect customer information
   hosts: automaton
-  become: false
 
   tasks:
     - name: Check necessary assertions
