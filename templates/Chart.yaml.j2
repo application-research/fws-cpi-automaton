@@ -6,15 +6,19 @@ version: {{ chart_version }}
 appVersion: 1.0.0
 
 dependencies:
+{% if 'edge' in products %}
 - name: cpi-edge
   version: {{ cpi_edge_version }}
   repository: "https://application-research.github.io/fws-cpi-helm"
+{% endif %}
+{% if 'delta' in products %}
 - name: cpi-delta
   version: {{ cpi_delta_version }}
   repository: "https://application-research.github.io/fws-cpi-helm"
 - name: cpi-delta-registry
   version: {{ cpi_delta_registry_version }}
   repository: "https://application-research.github.io/fws-cpi-helm"
+{% endif %}
 - name: cpi-postgresql
   version: {{ cpi_postgresql_version }}
   repository: "https://application-research.github.io/fws-cpi-helm"
