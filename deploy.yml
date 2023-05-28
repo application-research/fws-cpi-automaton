@@ -152,7 +152,7 @@
       when: not chart_exists.stat.exists
 
     - name: If we are updating the Helm charts (or creating them), fetch the latest versions from the Helm repository
-      when: (update_helm_charts | default(false)) or (not chart_exists.stat.exists)
+      when: (update_helm_charts | default(false)) or (not chart_exists.stat.exists) or (update_helm_charts | default(0) | int == 1)
       block:
         - name: Fetch Helm repo data from URL
           ansible.builtin.uri:
