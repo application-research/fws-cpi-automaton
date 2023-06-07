@@ -166,10 +166,10 @@
 
         - name: Find the latest available versions
           ansible.builtin.set_fact:
-            cpi_delta_version: "{{ (helm_repo_data.entries['cpi-delta'] | sort(attribute='version', reverse=true) | first).version }}"
-            cpi_delta_registry_version: "{{ (helm_repo_data.entries['cpi-delta-registry'] | sort(attribute='version', reverse=true) | first).version }}"
-            cpi_edge_version: "{{ (helm_repo_data.entries['cpi-edge'] | sort(attribute='version', reverse=true) | first).version }}"
-            cpi_postgresql_version: "{{ (helm_repo_data.entries['cpi-postgresql'] | sort(attribute='version', reverse=true) | first).version }}"
+            cpi_delta_version: "{{ (helm_repo_data.entries['cpi-delta'] | sort(attribute='version', reverse=true, itemgetter='version') | first).version }}"
+            cpi_delta_registry_version: "{{ (helm_repo_data.entries['cpi-delta-registry'] | sort(attribute='version', reverse=true, itemgetter='version') | first).version }}"
+            cpi_edge_version: "{{ (helm_repo_data.entries['cpi-edge'] | sort(attribute='version', reverse=true, itemgetter='version') | first).version }}"
+            cpi_postgresql_version: "{{ (helm_repo_data.entries['cpi-postgresql'] | sort(attribute='version', reverse=true, itemgetter='version') | first).version }}"
 
         # - name: Display the dependency versions
         #   ansible.builtin.debug:
