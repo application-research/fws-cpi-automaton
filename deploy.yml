@@ -164,12 +164,29 @@
           ansible.builtin.set_fact:
             helm_repo_data: "{{ helm_repo_response.content | from_yaml }}"
 
-        - name: Find the latest available versions
+        - name: Find the latest available cpi-delta version
           ansible.builtin.set_fact:
-            cpi_delta_version: "{{ (helm_repo_data.entries['cpi-delta'] | sort(attribute='version', reverse=true, itemgetter='version') | first).version }}"
-            cpi_delta_registry_version: "{{ (helm_repo_data.entries['cpi-delta-registry'] | sort(attribute='version', reverse=true, itemgetter='version') | first).version }}"
-            cpi_edge_version: "{{ (helm_repo_data.entries['cpi-edge'] | sort(attribute='version', reverse=true, itemgetter='version') | first).version }}"
-            cpi_postgresql_version: "{{ (helm_repo_data.entries['cpi-postgresql'] | sort(attribute='version', reverse=true, itemgetter='version') | first).version }}"
+            cpi_delta_version: "{{ item.version }}"
+          loop: "{{ helm_repo_data.entries['cpi-delta'] }}"
+          when: cpi_delta_version is not defined or item.version is version(cpi_delta_version, '>', strict=true)
+
+        - name: Find the latest available cpi-delta-registry version
+          ansible.builtin.set_fact:
+            cpi_delta_registry_version: "{{ item.version }}"
+          loop: "{{ helm_repo_data.entries['cpi-delta-registry'] }}"
+          when: cpi_delta_registry_version is not defined or item.version is version(cpi_delta_registry_version, '>', strict=true)
+
+        - name: Find the latest available cpi-edge version
+          ansible.builtin.set_fact:
+            cpi_edge_version: "{{ item.version }}"
+          loop: "{{ helm_repo_data.entries['cpi-edge'] }}"
+          when: cpi_edge_version is not defined or item.version is version(cpi_edge_version, '>', strict=true)
+
+        - name: Find the latest available cpi-postgresql version
+          ansible.builtin.set_fact:
+            cpi_postgresql_version: "{{ item.version }}"
+          loop: "{{ helm_repo_data.entries['cpi-postgresql'] }}"
+          when: cpi_postgresql_version is not defined or item.version is version(cpi_postgresql_version, '>', strict=true)
 
         # - name: Display the dependency versions
         #   ansible.builtin.debug:
