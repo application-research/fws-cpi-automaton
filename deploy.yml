@@ -182,6 +182,12 @@
           loop: "{{ helm_repo_data.entries['cpi-edge'] }}"
           when: cpi_edge_version is not defined or item.version is version(cpi_edge_version, '>', strict=true)
 
+        - name: Find the latest available cpi-edge-urid version
+          ansible.builtin.set_fact:
+            cpi_edge_urid_version: "{{ item.version }}"
+          loop: "{{ helm_repo_data.entries['cpi-edge-urid'] }}"
+          when: cpi_edge_urid_version is not defined or item.version is version(cpi_edge_urid_version, '>', strict=true)
+
         - name: Find the latest available cpi-postgresql version
           ansible.builtin.set_fact:
             cpi_postgresql_version: "{{ item.version }}"
