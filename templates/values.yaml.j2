@@ -9,6 +9,11 @@ global:
       tshirtSize: {{ edge_tshirtsize }}
       ingressName: {{ customer_name }}.edge.estuary.tech
 {% endif %}
+{% if 'edge-urid' in products %}
+    edge-urid:
+      tshirtSize: {{ edge_tshirtsize }}
+      ingressName: {{ customer_name }}.edgeurid.estuary.tech
+{% endif %}
 {% if 'delta' in products %}
     delta:
       tshirtSize: {{ delta_tshirtsize }}
